@@ -1,8 +1,11 @@
+from os import startfile
+import time
 from tkinter import filedialog, messagebox, Label, StringVar, Radiobutton, Button
 from datetime import datetime, timedelta
 import openpyxl
 from win32com.client import Dispatch
 import tkinter as tk
+from pygetwindow import getWindowsWithTitle, getAllTitles
 
 class EmailApp:
     def __init__(self, master):
@@ -52,9 +55,9 @@ class EmailApp:
         n = date[0:2]
         if int(n) // 10 == 0:
             n = int(n[1:])
-            dom =  str(n) + {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10 if not 10 <= n <= 20 else 0, "th")
+            n =  str(n) + {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10 if not 10 <= n <= 20 else 0, "th")
 
-        return date, dom
+        return date, n
     
     def edit_excel(self, shift, dom):
         # Load the Excel file
@@ -79,12 +82,15 @@ class EmailApp:
             messagebox.showerror("Error", "Please attach a file before sending the email.")
             return
 
-        outlook = Dispatch('outlook.application')
-        mail = outlook.CreateItem(0)
-
         shift = self.shift_var.get()
         date, dom = self.get_date()
         self.edit_excel(shift, dom)
+
+        # Open the attached file after edits
+        startfile(self.attachment)
+
+        outlook = Dispatch('outlook.application')
+        mail = outlook.CreateItem(0)
 
         subject = f"HO - {shift} Handover from STORAGE | {date}"
         body = (
@@ -99,10 +105,6 @@ class EmailApp:
         word_editor = inspector.WordEditor
         signature = mail.HTMLBody
 
-        # Append signature to the body
-        mail.HTMLBody = body + signature
-        mail.Attachments.Add(self.attachment)
-
         # Add recipient email addresses here
         mail.To = "gidcind_vpc_storage@dxc.com"
         cc_list = ["anoop.chandrahasa@dxc.com", "ifthikhar-ali.khan@dxc.com", "r.abhilash@dxc.com", "gunasekaran.s2@dxc.com"]
@@ -110,10 +112,48 @@ class EmailApp:
             recipient = mail.Recipients.Add(cc_email)
             recipient.Type = 2  # 2 represents the value for CC recipient
             recipient.Resolve()
-        
-        mail.Display()
 
         self.master.destroy()
+
+         # Wait for Excel window to open and bring it to focus
+        excel_window = None
+        
+        time.sleep(10)
+          # Adjust the time as needed
+
+        # Get the titles of all visible windows
+        windows = getAllTitles()
+        # Check if any window title contains "Excel"
+        for window_title in windows:
+            if "Excel" in window_title:
+                excel_window = getWindowsWithTitle(window_title)
+
+                if excel_window:
+                    time.sleep(1)
+                    excel_window[0].activate()
+        
+        errcount = 0
+        # Check if any window title contains "Excel"
+        while excel_window:
+            time.sleep(10)
+            # Get the titles of all visible windows
+            windows = getAllTitles()
+            for window_title in windows:
+                if "Excel" in window_title:
+                    excel_window = getWindowsWithTitle(window_title)
+                    errcount = 0
+                    break
+                else: 
+                    continue
+            errcount+=1
+            if errcount>2:
+                excel_window = False
+        
+        # Append signature to the body
+        mail.HTMLBody = body + signature
+        mail.Attachments.Add(self.attachment)
+        mail.Display()
+
 
 def main():
     root = tk.Tk()
