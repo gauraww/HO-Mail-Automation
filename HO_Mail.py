@@ -1,5 +1,6 @@
 from tkinter import filedialog, messagebox, Label, StringVar, Radiobutton, Button
 from datetime import datetime, timedelta
+import openpyxl
 from win32com.client import Dispatch
 import tkinter as tk
 
@@ -40,6 +41,39 @@ class EmailApp:
         if self.attachment:
             self.attachment_label.config(text=(self.attachment))
 
+    def get_date(self):
+        shift = self.shift_var.get()
+        if shift == "Night Shift":
+            # Calculate previous day date
+            date = (datetime.now() - timedelta(days=1)).strftime('%d/%m/%Y')
+        else:
+            date = datetime.now().strftime('%d/%m/%Y')
+        
+        n = date[0:2]
+        if int(n) // 10 == 0:
+            n = int(n[1:])
+            dom =  str(n) + {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10 if not 10 <= n <= 20 else 0, "th")
+
+        return date, dom
+    
+    def edit_excel(self, shift, dom):
+        # Load the Excel file
+        if self.attachment.endswith('.xlsx'):
+            wb = openpyxl.load_workbook(self.attachment)
+            sheet = wb.active
+
+            # Edit the 2nd row text
+            sheet['A2'] = f"{shift} Handover for {dom} {datetime.now().strftime('%B %Y')}"
+
+            # Edit the 3rd row and column cell text
+            sheet.cell(row=3, column=7, value=f"{shift} Updates")
+
+            # Change the worksheet name
+            sheet.title = f"{shift} Handover"
+
+            # Save the changes
+            wb.save(self.attachment)
+
     def send_email(self):
         if not self.attachment:
             messagebox.showerror("Error", "Please attach a file before sending the email.")
@@ -49,16 +83,13 @@ class EmailApp:
         mail = outlook.CreateItem(0)
 
         shift = self.shift_var.get()
-        if shift == "Night Shift":
-            # Calculate previous day date
-            date = (datetime.now() - timedelta(days=1)).strftime('%d/%m/%Y')
-        else:
-            date = datetime.now().strftime('%d/%m/%Y')
+        date, dom = self.get_date()
+        self.edit_excel(shift, dom)
 
         subject = f"HO - {shift} Handover from STORAGE | {date}"
         body = (
-            "<p>Hi Team,</p>"
-            f"<p>Please find the attached {shift} HO for {date} from Storage Team.</p>"
+            "<p style='font-size:11.5pt;'>Hi Team,</p>"
+            f"<p style='font-size:11.5pt;'>Please find the attached {shift} HO for {date} from Storage Team.</p>"
         )
 
         mail.Subject = subject
