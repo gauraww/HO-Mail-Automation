@@ -29,14 +29,14 @@ class EmailApp:
         self.night_shift_button = Radiobutton(master, text="Night Shift", variable=self.shift_var, value="Night Shift")
         self.night_shift_button.grid(row=0, column=3)
 
-        self.attachment_label = Label(master, text="No file attached")
-        self.attachment_label.grid(row=1, column=0, columnspan=4)
+        self.attachment_label = Label(master, text="No file attached", wraplength= 350)
+        self.attachment_label.grid(row=1, column=0, columnspan=4, rowspan=2)
 
         self.attachment_button = Button(master, text="Attach File", command=self.attach_file)
-        self.attachment_button.grid(row=2, column=0, columnspan=2)
+        self.attachment_button.grid(row=3, column=0, columnspan=2)
 
         self.send_button = Button(master, text="Send Email", command=self.send_email)
-        self.send_button.grid(row=2, column=2, columnspan=2)
+        self.send_button.grid(row=3, column=2, columnspan=2)
 
 
     def attach_file(self):
@@ -52,12 +52,9 @@ class EmailApp:
         else:
             date = datetime.now().strftime('%d/%m/%Y')
         
-        n = date[0:2]
-        if int(n) // 10 == 0:
-            n = int(n[1:])
-            n =  str(n) + {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10 if not 10 <= n <= 20 else 0, "th")
-
-        return date, n
+        n = int(date[0:2])
+        suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(n if n < 20 else n % 10, 'th')
+        return date, str(n) + suffix
     
     def edit_excel(self, shift, dom):
         # Load the Excel file
@@ -77,6 +74,8 @@ class EmailApp:
             # Save the changes
             wb.save(self.attachment)
 
+            wb.close()
+
     def send_email(self):
         if not self.attachment:
             messagebox.showerror("Error", "Please attach a file before sending the email.")
@@ -92,7 +91,7 @@ class EmailApp:
         outlook = Dispatch('outlook.application')
         mail = outlook.CreateItem(0)
 
-        subject = f"HO - {shift} Handover from STORAGE | {date}"
+        subject = f'HO - {shift} Handover from "STORAGE" | {date}'
         body = (
             "<p style='font-size:11.5pt;'>Hi Team,</p>"
             f"<p style='font-size:11.5pt;'>Please find the attached {shift} HO for {date} from Storage Team.</p>"
@@ -151,6 +150,7 @@ class EmailApp:
         
         # Append signature to the body
         mail.HTMLBody = body + signature
+        time.sleep(2)
         mail.Attachments.Add(self.attachment)
         mail.Display()
 
